@@ -96,165 +96,166 @@ if ( ! function_exists('is_really_writable'))
 		elseif ( ! is_file($file) OR ($fp = @fopen($file, FOPEN_WRITE_CREATE)) === FALSE)
 		{
 			return FALSE;
-		}
+			}
 
-		fclose($fp);
-		return TRUE;
+			fclose($fp);
+			return TRUE;
+		}
 	}
-}
 
-// ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
-/**
-* Class registry
-*
-* This function acts as a singleton.  If the requested class does not
-* exist it is instantiated and set to a static variable.  If it has
-* previously been instantiated the variable is returned.
-*
-* @access	public
-* @param	string	the class name being requested
-* @param	string	the directory where the class should be found
-* @param	string	the class name prefix
-* @return	object
-*/
-if ( ! function_exists('load_class'))
-{
-	function &load_class($class, $directory = 'libraries', $prefix = 'CI_')
+	/**
+	* Class registry
+	*
+	* This function acts as a singleton.  If the requested class does not
+	* exist it is instantiated and set to a static variable.  If it has
+	* previously been instantiated the variable is returned.
+	*
+	* @access	public
+	* @param	string	the class name being requested
+	* @param	string	the directory where the class should be found
+	* @param	string	the class name prefix
+	* @return	object
+	*/
+	if ( ! function_exists('load_class'))
 	{
-		static $_classes = array();
-
-		// Does the class exist?  If so, we're done...
-		if (isset($_classes[$class]))
+		function &load_class($class, $directory = 'libraries', $prefix = 'CI_')
 		{
-			return $_classes[$class];
-		}
+			static $_classes = array();
 
-		$name = FALSE;
-
-		// Look for the class first in the local application/libraries folder
-		// then in the native system/libraries folder
-		foreach (array(APPPATH, BASEPATH) as $path)
-		{
-			if (file_exists($path.$directory.'/'.$class.'.php'))
+			// Does the class exist?  If so, we're done...
+			if (isset($_classes[$class]))
 			{
-				$name = $prefix.$class;
+				return $_classes[$class];
+			}
+
+			$name = FALSE;
+
+			// Look for the class first in the local application/libraries folder
+			// then in the native system/libraries folder
+			foreach (array(APPPATH, BASEPATH) as $path)
+			{
+				if (file_exists($path.$directory.'/'.$class.'.php'))
+				{
+					$name = $prefix.$class;
+
+					if (class_exists($name) === FALSE)
+					{
+						require($path.$directory.'/'.$class.'.php');
+					}
+
+					break;
+				}
+			}
+
+			// Is the request a class extension?  If so we load it too
+			if (file_exists(APPPATH.$directory.'/'.config_item('subclass_prefix').$class.'.php'))
+			{
+				$name = config_item('subclass_prefix').$class;
 
 				if (class_exists($name) === FALSE)
 				{
-					require($path.$directory.'/'.$class.'.php');
+					require(APPPATH.$directory.'/'.config_item('subclass_prefix').$class.'.php');
 				}
-
-				break;
 			}
-		}
 
-		// Is the request a class extension?  If so we load it too
-		if (file_exists(APPPATH.$directory.'/'.config_item('subclass_prefix').$class.'.php'))
-		{
-			$name = config_item('subclass_prefix').$class;
-
-			if (class_exists($name) === FALSE)
+			// Did we find the class?
+			if ($name === FALSE)
 			{
-				require(APPPATH.$directory.'/'.config_item('subclass_prefix').$class.'.php');
+				// Note: We use exit() rather then show_error() in order to avoid a
+				// self-referencing loop with the Excptions class
+				exit('Unable to locate the specified class: '.$class.'.php');
 			}
+
+			// Keep track of what we just loaded
+			is_loaded($class);
+
+			$_classes[$class] = new $name();
+			return $_classes[$class];
 		}
-
-		// Did we find the class?
-		if ($name === FALSE)
-		{
-			// Note: We use exit() rather then show_error() in order to avoid a
-			// self-referencing loop with the Excptions class
-			exit('Unable to locate the specified class: '.$class.'.php');
-		}
-
-		// Keep track of what we just loaded
-		is_loaded($class);
-
-		$_classes[$class] = new $name();
-		return $_classes[$class];
 	}
-}
 
-// --------------------------------------------------------------------
+	// --------------------------------------------------------------------
 
-/**
-* Keeps track of which libraries have been loaded.  This function is
-* called by the load_class() function above
-*
-* @access	public
-* @return	array
-*/
-if ( ! function_exists('is_loaded'))
-{
-	function &is_loaded($class = '')
+	/**
+	* Keeps track of which libraries have been loaded.  This function is
+	* called by the load_class() function above
+	*
+	* @access	public
+	* @return	array
+	*/
+	if ( ! function_exists('is_loaded'))
 	{
-		static $_is_loaded = array();
-
-		if ($class != '')
+		function &is_loaded($class = '')
 		{
-			$_is_loaded[strtolower($class)] = $class;
-		}
+			static $_is_loaded = array();
 
-		return $_is_loaded;
-	}
-}
-
-// ------------------------------------------------------------------------
-
-/**
-* Loads the main config.php file
-*
-* This function lets us grab the config file even if the Config class
-* hasn't been instantiated yet
-*
-* @access	private
-* @return	array
-*/
-if ( ! function_exists('get_config'))
-{
-	function &get_config($replace = array())
-	{
-		static $_config;
-
-		if (isset($_config))
-		{
-			return $_config[0];
-		}
-
-		// Is the config file in the environment folder?
-		if ( ! defined('ENVIRONMENT') OR ! file_exists($file_path = APPPATH.'config/'.ENVIRONMENT.'/config.php'))
-		{
-			$file_path = APPPATH.'config/config.php';
-		}
-
-		// Fetch the config file
-		if ( ! file_exists($file_path))
-		{
-			exit('The configuration file does not exist.');
-		}
-
-		require($file_path);
-
-		// Does the $config array exist in the file?
-		if ( ! isset($config) OR ! is_array($config))
-		{
-			exit('Your config file does not appear to be formatted correctly.');
-		}
-
-		// Are any values being dynamically replaced?
-		if (count($replace) > 0)
-		{
-			foreach ($replace as $key => $val)
+			if ($class != '')
 			{
-				if (isset($config[$key]))
+				$_is_loaded[strtolower($class)] = $class;
+			}
+
+			return $_is_loaded;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	* Loads the main config.php file
+	*
+	* This function lets us grab the config file even if the Config class
+	* hasn't been instantiated yet
+	*
+	* @access	private
+	* @return	array
+	*/
+	if ( ! function_exists('get_config'))
+	{
+		function &get_config($replace = array())
+		{
+			static $_config;
+
+			if (isset($_config))
+			{
+				return $_config[0];
+			}
+
+			// Is the config file in the environment folder?
+			if ( ! defined('ENVIRONMENT') OR ! file_exists($file_path = APPPATH.'config/'.ENVIRONMENT.'/config.php'))
+			{
+				$file_path = APPPATH.'config/config.php';
+			}
+
+			// Fetch the config file
+			if ( ! file_exists($file_path))
+			{
+				exit('The configuration file does not exist.');
+			}
+
+			require($file_path);
+
+			// Does the $config array exist in the file?
+			if ( ! isset($config) OR ! is_array($config))
+			{
+				exit('Your config file does not appear to be formatted correctly.');
+			}
+
+			// Are any values being dynamically replaced?
+			if (count($replace) > 0)
+			{
+				foreach ($replace as $key => $val)
 				{
-					$config[$key] = $val;
+					if (isset($config[$key]))
+					{
+						$config[$key] = $val;
+					}
 				}
 			}
-		}
 
-		return $_config[0] =& $config;
+			$_config[0] =& $config;
+			return $_config[0];
 	}
 }
 
