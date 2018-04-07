@@ -14,7 +14,7 @@
 | path to your installation.
 |
 */
-$config['base_url']	= 'http://191.252.109.197/ordemservico';
+$config['base_url']	= '';
 
 /*
 |--------------------------------------------------------------------------
